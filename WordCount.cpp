@@ -1,67 +1,85 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define MAX_BUF_SIZE 1024
 
-#define MAX_LINE_LENGTH 1024
-
-int count_zifu(char *line) {
-    int count = 0;
-    for (int i = 0; i < strlen(line); i++) {
-        if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n' && line[i] != ',') {
-            count++;
-        }
-    }
-    return count;
-}
-
-int count_word(char *line) {
-    int count = 0;
-    char *delimiters = " \t\n,";
-    char *token = strtok(line, delimiters);
-    while (token != NULL) {
-        count++;
-        token = strtok(NULL, delimiters);
-    }
-    return count;
-}
+int countChar(FILE *fp);
+int countWord(FILE *fp);
+char getChar(FILE *fp);
 
 int main(int argc, char *argv[]) {
-    char *filename = "text.txt";
-    char *parameter;
-    if (argc > 1) {
-        parameter = argv[1];
-        if (argc > 2) {
-            filename = argv[2];
-        }
-    } else {
-        printf("Usage: %s [-c|-w] [input_file_name]\n", argv[0]);
-        return 1;
-    }
-
-    FILE *fp;
-    char line[MAX_LINE_LENGTH];
     int count = 0;
-
-    fp = fopen(filename, "r");
-    if (fp == NULL) {
-        printf("Error: cannot open file %s.\n", filename);
+    FILE *fp;
+    
+    // 检查参数是否合法
+    if (argc != 3) {
+        printf("Usage: %s [-c | -w] input-file\n", argv[0]);
         return 1;
     }
-
-    while (fgets(line, MAX_LINE_LENGTH, fp)) {
-        if (strcmp(parameter, "-c") == 0) {
-            count += count_zifu(line);
-        } else if (strcmp(parameter, "-w") == 0) {
-            count += count_word(line);
-        } else {
-            printf("Error: invalid parameter %s.\n", parameter);
-            return 1;
-        }
+    // 打开文件
+    fp = fopen(argv[2], "r");
+    if (fp == NULL) {
+        printf("Cannot open file: %s\n", argv[2]);
+        return 2;
     }
-
-    printf("%s count: %d\n", (strcmp(parameter, "-c") == 0) ? "Character" : "Word", count);
-
+    
+    // 根据参数计算字符数或单词数
+    if (strcmp(argv[1], "-c") == 0) {
+        count = countChar(fp);
+        printf("字符数: %d\n", count);
+    } else if (strcmp(argv[1], "-w") == 0) {
+        count = countWord(fp);
+        printf("单词数: %d\n", count);
+    } else {
+        printf("Invalid option: %s\n", argv[1]);
+        return 1;
+    }
+    
     fclose(fp);
-
     return 0;
+}
+
+// 计算文件中字符数
+int countChar(FILE *fp) {
+    int count = 0;
+    char ch = getChar(fp);
+    while (ch != EOF) {
+        count++;
+        ch = getChar(fp);
+    }
+    return count;
+}
+
+// 计算文件中单词数
+int countWord(FILE *fp) {
+    int count = 0;
+    char ch, prev_ch = ' ';
+    while ((ch = getChar(fp)) != EOF) {
+        if (ch == ' ' || ch == '\n' || ch == '\t' || ch == ',') {
+            if (prev_ch != ' ' && prev_ch != '\n' && prev_ch != '\t' && prev_ch != ',') {
+                count++;
+            }
+        }
+        prev_ch = ch;
+    }
+    if (prev_ch != ' ' && prev_ch != '\n' && prev_ch != '\t' && prev_ch != ',') {
+        count++;
+    }
+    return count;
+}
+
+// 读取一个字符，包括空格、制表符和换行符
+char getChar(FILE *fp) {
+    static char buf[MAX_BUF_SIZE];
+    static int pos = 0;
+    static int len = 0;
+
+    if (pos == len) {
+        len = fread(buf, sizeof(char), MAX_BUF_SIZE, fp);
+        pos = 0;
+    }
+    if (pos == len) {
+        return EOF;
+    }
+    return buf[pos++];
 }
